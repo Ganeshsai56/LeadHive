@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from openai import OpenAI
 import os
@@ -10,13 +10,9 @@ client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-# ✅ ADDED ROOT ROUTE (THIS FIXES 404)
-@app.route("/", methods=["GET"])
+@app.route("/")
 def home():
-    return jsonify({
-        "status": "ok",
-        "message": "LeadHive backend is running 🚀"
-    })
+    return render_template("index.html")
 
 @app.route("/chat", methods=["POST"])
 def chat():
