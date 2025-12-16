@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
 import os
@@ -9,10 +9,6 @@ CORS(app)
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
-
-@app.route("/")
-def home():
-    return render_template("index.html")
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -46,4 +42,3 @@ def chat():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-

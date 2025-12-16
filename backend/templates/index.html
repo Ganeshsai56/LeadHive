@@ -1,0 +1,1146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LeadHive — Google Maps Lead Extractor</title>
+  <meta name="description" content="LeadHive extracts Google Maps leads — names, addresses, phones, websites, emails — with auto-scroll and CSV export." />
+  <link rel="icon" href="leadhive-logo.png" />
+
+  <!-- Styles (blue + orange theme) -->
+  <style>
+    :root{
+      --bg:#ffffff;
+      --primary-blue:#0A4C9A;
+      --primary-blue-2:#0D6ECF;
+      --accent-orange:#F28C28;
+      --muted:#6a6f7a;
+      --card-glass: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      --thumb-gap: 18px;
+      --max-width:1120px;
+    }
+
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:#0f1724;-webkit-font-smoothing:antialiased}
+    .container{max-width:var(--max-width);margin:0 auto;padding:24px}
+
+    /* NAV */
+    .nav{position:sticky;top:0;backdrop-filter:blur(6px);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));z-index:40;border-bottom:1px solid rgba(255,255,255,0.02)}
+    .nav-inner{display:flex;align-items:center;justify-content:space-between}
+    .nav-left{display:flex;align-items:center;gap:12px}
+
+    /* ---------- CHANGED: show only logo image (no outer white box/border) ---------- */
+    .nav-logo{
+      /* removed background, padding and border so only the image shows */
+      width:auto;
+      height:auto;
+      background:transparent;
+      border:none;
+      padding:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .nav-logo img{
+      width:72px;          /* adjust the visible logo size here */
+      height:auto;
+      object-fit:contain;
+      display:block;
+      border-radius:8px;   /* optional small radius on the image itself */
+      background:transparent;
+    }
+    /* --------------------------------------------------------------------------- */
+
+    .nav-brand{font-weight:800;color:var(--primary-blue)}
+    .nav-right{display:flex;align-items:center;gap:12px}
+    .nav-link{color:var(--muted);text-decoration:none;padding:8px 10px;border-radius:8px}
+    .nav-link:hover{color:#0f1724}
+    .nav-cta{background:linear-gradient(180deg,var(--primary-blue),var(--primary-blue-2));color:white;border:none;padding:8px 12px;border-radius:10px;cursor:pointer}
+
+    /* HERO */
+    .hero{padding:64px 0 40px}
+    .hero-inner{display:flex;gap:36px;align-items:center;flex-wrap:wrap}
+    .hero-left{flex:1;min-width:300px}
+    .kicker{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(10,76,154,0.12);color:var(--primary-blue);font-weight:700;margin-bottom:12px}
+    .hero-title{font-size:40px;margin:0 0 14px;color:#0A4C9A;line-height:1.04;text-shadow:none;max-width:640px;line-height:1.6;margin-bottom:12px}
+    .hero-desc{color:var(--muted);max-width:640px;line-height:1.6;margin-bottom:12px}
+    .hero-cta{margin-top:12px;display:flex;gap:12px;flex-wrap:wrap}
+    .btn{display:inline-block;padding:12px 18px;border-radius:12px;font-weight:700;border:none;cursor:pointer}
+    .btn.primary{background:linear-gradient(180deg,var(--primary-blue),var(--primary-blue-2));color:#fff}
+    .btn.ghost{background:transparent;color:#0f1724;border:1px solid rgba(255,255,255,0.06)}
+    .hero-meta{margin-top:18px;display:flex;gap:14px;align-items:center;color:var(--muted);flex-wrap:wrap}
+
+    /* HERO SCREENSHOT (main) */
+    .hero-right{width:520px;flex:0 0 520px;display:flex;align-items:center;justify-content:center;min-width:260px;position:relative}
+    .device-wrap{position:relative;width:520px;height:320px;transform-style:preserve-3d}
+    .device-screen{position:absolute;inset:0;border-radius:16px;overflow:hidden;box-shadow:0 22px 70px rgba(2,6,23,0.08);background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.98));border:1px solid rgba(15,23,36,0.06);display:flex;align-items:center;justify-content:center}
+    .device-screen img{max-width:100%;max-height:100%;object-fit:contain;display:block;cursor:pointer;transition:transform .28s ease}
+    .device-screen img:hover{transform:scale(1.02)}
+
+    /* slider arrows
+       ---------- CHANGED: hide arrows ----------
+       If you want arrows back later set display:flex instead of none.
+    */
+    .slider-control{display:none !important}
+    .slider-control svg{width:18px;height:18px;fill:#0f1724}
+    /* ----------------------------------------------------- */
+
+    /* thumbnail strip */
+    .screenshots{padding:44px 0}
+    .screenshots h2{margin:0 0 8px}
+    .screenshots p{margin:0 0 12px;color:var(--muted)}
+    .screens-grid{
+      display:flex;
+      gap:var(--thumb-gap);
+      align-items:center;
+      overflow-x:auto;
+      padding-bottom:6px;
+      margin-top:14px;
+      -webkit-overflow-scrolling:touch;
+      scroll-behavior:smooth;
+    }
+    .thumb{
+      flex: 0 0 calc((100% - (4 * var(--thumb-gap))) / 5);
+      height:124px;
+      border-radius:12px;
+      overflow:hidden;
+      box-shadow:0 16px 46px rgba(0,0,0,0.06);
+      border:1px solid rgba(15,23,36,0.04);
+      cursor:pointer;
+      transition:transform .18s,box-shadow .18s;
+      position:relative;
+      background:#fff;
+      min-width:180px;
+    }
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .thumb:hover{transform:translateY(-6px);box-shadow:0 20px 46px rgba(0,0,0,0.08)}
+    .thumb.active{outline:4px solid rgba(10,76,154,0.08);transform:translateY(-4px)}
+
+    .screens-grid::-webkit-scrollbar{height:10px}
+    .screens-grid::-webkit-scrollbar-thumb{background:rgba(15,23,36,0.06);border-radius:8px}
+
+    /* FEATURES / REVIEWS etc */
+    .features-section{padding:56px 0}
+    .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:18px}
+    .feature-3d{background:linear-gradient(180deg, rgba(255,255,255,1), rgba(255,255,255,0.98));padding:18px;border-radius:12px;box-shadow:0 16px 46px rgba(0,0,0,0.06);transition:transform .28s}
+    .feature-3d:hover{transform:translateY(-12px)}
+    .feature-title{font-weight:800;color:var(--primary-blue)}
+    .feature-desc{margin-top:8px;color:var(--muted)}
+
+    .reviews{padding:48px 0}
+    .review-section-inner{display:grid;grid-template-columns:1fr 420px;gap:24px;align-items:start}
+    .reviews-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:12px}
+    .review-card{padding:16px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,1), rgba(255,255,255,0.98));box-shadow:0 12px 36px rgba(0,0,0,0.06)}
+    .review-stars{color:var(--primary-blue);font-weight:800}
+    .review-title{font-weight:800;margin-top:6px;color:#1f2937}
+    .review-text{margin-top:8px;color:#444}
+    .review-meta{margin-top:12px;color:var(--muted);font-weight:700;display:flex;gap:8px;align-items:center;font-size:13px}
+    .verified-badge{background:#0a7a2a;color:white;padding:4px 8px;border-radius:999px;font-weight:700;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+
+    /* Review form */
+    .review-form{background:linear-gradient(180deg, rgba(255,255,255,1), rgba(255,255,255,0.98));padding:18px;border-radius:12px;border:1px solid rgba(15,23,36,0.04);box-shadow:0 10px 30px rgba(0,0,0,0.04)}
+    .review-form h3{margin:0 0 8px}
+    .form-row{margin-bottom:10px;display:flex;flex-direction:column;gap:6px}
+    .form-row label{font-size:13px;color:var(--muted);font-weight:700}
+    .form-row input[type="text"], .form-row textarea, .form-row select{
+      padding:10px;border-radius:8px;border:1px solid rgba(15,23,36,0.06);font-size:14px;width:100%;
+    }
+    .form-row textarea{min-height:80px;resize:vertical}
+    .stars{display:flex;gap:6px;align-items:center}
+    .star-btn{background:transparent;border:1px solid rgba(15,23,36,0.06);width:36px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .star-btn.active{background:linear-gradient(180deg,var(--primary-blue),var(--primary-blue-2));color:#fff;border:none}
+    .form-actions{display:flex;gap:10px;align-items:center;margin-top:8px}
+    .small-muted{font-size:13px;color:var(--muted)}
+
+    .pricing{padding:56px 0}
+    .pricing-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}
+    .price-card{padding:20px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,1), rgba(255,255,255,0.98));box-shadow:0 16px 46px rgba(0,0,0,0.06);text-align:center;border:1px solid rgba(15,23,36,0.04)}
+    .price-value{font-size:28px;margin:12px 0;color:var(--primary-blue)}
+
+    .steps{list-style:decimal;margin-left:20px;color:var(--muted);line-height:1.7}
+    details{background:linear-gradient(180deg, rgba(255,255,255,1), rgba(255,255,255,0.98));padding:12px;border-radius:10px;box-shadow:0 10px 26px rgba(0,0,0,0.06)}
+    .cta{padding:44px 0;background:linear-gradient(180deg, rgba(10,76,154,0.03), rgba(255,255,255,0.98));border-radius:12px;margin:22px 0;box-shadow:0 12px 40px rgba(0,0,0,0.06)}
+    .center{text-align:center}
+    .footer{padding:24px 0;color:var(--muted);text-align:center}
+
+    /* LIGHTBOX */
+    .lightbox-backdrop{
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(2,6,23,0.85);
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      padding:24px;
+    }
+    .lightbox{
+      max-width:1200px;
+      width:100%;
+      max-height:90vh;
+      background:transparent;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+    }
+    .lightbox img{max-width:100%;max-height:90vh;border-radius:10px;box-shadow:0 30px 90px rgba(0,0,0,0.8)}
+    .lightbox-close{
+      position:absolute;
+      right:12px;
+      top:12px;
+      background:#fff;
+      border:none;
+      color:#0f1724;
+      font-size:20px;
+      width:44px;
+      height:44px;
+      border-radius:10px;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 6px 20px rgba(0,0,0,0.25);
+    }
+    .lightbox-nav{
+      position:absolute;
+      top:50%;
+      transform:translateY(-50%);
+      width:48px;height:48px;border-radius:8px;background:rgba(255,255,255,0.9);display:flex;align-items:center;justify-content:center;border:1px solid rgba(15,23,36,0.06);cursor:pointer;color:#0f1724;
+    }
+    .lightbox-prev{left:12px}
+    .lightbox-next{right:12px}
+    .lightbox-caption{position:absolute;left:16px;bottom:16px;color:#fff;background:rgba(0,0,0,0.35);padding:8px 12px;border-radius:8px;font-weight:600}
+
+    .demo-modal .demo-close{
+      background:#fff;
+      color:#0f1724;
+      width:40px;height:40px;border-radius:8px;border:none;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(0,0,0,0.18);
+    }
+
+    @media (max-width:1200px){
+      .thumb{flex:0 0 calc((100% - (3 * var(--thumb-gap))) / 4)}
+      .review-section-inner{grid-template-columns:1fr}
+    }
+    @media (max-width:980px){
+      .hero-inner{flex-direction:column;align-items:flex-start}
+      .hero-right{width:100%;flex-basis:auto;margin-top:18px}
+      .device-wrap{width:100%;height:220px}
+      .pricing-grid{grid-template-columns:1fr}
+      .slider-prev, .slider-next{display:none}
+      .screens-grid{gap:12px}
+      .thumb{flex:0 0 45%;height:110px}
+      .review-section-inner{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <!-- NAV -->
+  <header class="nav">
+    <div class="container nav-inner">
+      <div class="nav-left">
+        <div class="nav-logo"><img src="leadhive-logo.png" alt="LeadHive" /></div>
+        <div class="nav-brand" style="font-size:26px; font-weight:800; display:flex; align-items:center; gap:6px;">
+          <span style="color:#1E3A8A;">Lead</span><span style="color:#F4B400;">Hive</span>
+        </div>
+      </div>
+      <div class="nav-right">
+        <a class="nav-link" href="#features">Features</a>
+        <a class="nav-link" href="#pricing">Pricing</a>
+        <a class="nav-link" href="#faq">FAQ</a>
+        <button id="navInstall" class="nav-cta">Install</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <main>
+    <section class="hero">
+      <div class="container hero-inner">
+        <div class="hero-left">
+          <div class="kicker">Lead generation — simplified</div>
+          <h1 class="hero-title">Turn Google Maps into real leads — instantly</h1>
+          <p class="hero-desc">LeadHive auto-loads Google Maps results, extracts business name, address, phone and website, and exports clean CSVs — all locally, with one click.</p>
+
+          <div class="hero-cta">
+            <button id="addBtn" class="btn primary">Add to Chrome</button>
+            <button id="watchDemo" class="btn ghost">Watch demo</button>
+          </div>
+
+          <div class="hero-meta">
+            <div class="rating"><strong>4.7</strong> ★ <span class="muted">· 3k+ users</span></div>
+            <div class="trust small muted">Local processing • Privacy-first • Works with any city</div>
+          </div>
+        </div>
+
+        <div class="hero-right">
+          <!-- arrows are present in DOM for accessibility/markup but hidden via CSS -->
+          <div class="slider-control slider-prev" id="sliderPrev" title="Previous">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+          </div>
+
+          <div class="device-wrap">
+            <div class="device-screen">
+              <img id="mainScreenshot" src="screenshots/s1.png" alt="LeadHive screenshot" />
+            </div>
+          </div>
+
+          <div class="slider-control slider-next" id="sliderNext" title="Next">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRUSTBAR -->
+    <section class="trustbar">
+      <div class="container trust-inner">
+        <div class="trust-item">✅ Local processing — no servers</div>
+        <div class="trust-item">🔒 Privacy friendly</div>
+        <div class="trust-item">⚡ Fast extraction</div>
+        <div class="trust-item">🧩 Works for any city & category</div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features" class="features-section">
+      <div class="container">
+        <h2>Powerful features built for real lead work</h2>
+        <div class="features-grid">
+          <div class="feature-3d">
+            <div class="feature-title">Auto-scrolls Maps to load all results</div>
+            <div class="feature-desc">Automatically loads lazy results until the end of the list.</div>
+          </div>
+
+          <div class="feature-3d">
+            <div class="feature-title">Extracts Name, Address, Phone, Website</div>
+            <div class="feature-desc">Cleans and normalizes extracted fields for CSV export.</div>
+          </div>
+
+          <div class="feature-3d">
+            <div class="feature-title">Retry + Fallback</div>
+            <div class="feature-desc">Retries background extraction and falls back to list-panel capture.</div>
+          </div>
+
+          <div class="feature-3d">
+            <div class="feature-title">CSV Export</div>
+            <div class="feature-desc">One-click CSV download ready for Excel/Google Sheets/CRM.</div>
+          </div>
+
+          <div class="feature-3d">
+            <div class="feature-title">Local-only</div>
+            <div class="feature-desc">All processing is done in your browser — no external servers used.</div>
+          </div>
+
+          <div class="feature-3d">
+            <div class="feature-title">Optional email lookup</div>
+            <div class="feature-desc">Best-effort email discovery from business websites (optional).</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREENSHOTS (thumbnails) -->
+    <section class="screenshots">
+      <div class="container">
+        <h2>Screenshots & demo</h2>
+        <p class="muted">Click an image to enlarge.</p>
+        <div class="screens-grid" id="thumbsContainer">
+          <!-- thumbnails injected by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- REVIEWS + SUBMISSION FORM -->
+    <section class="reviews" id="reviewsSection">
+      <div class="container">
+        <h2>What users say</h2>
+
+        <div class="review-section-inner">
+          <!-- Left: existing reviews grid -->
+          <div>
+            <div class="reviews-grid" id="reviewsGrid">
+              <!-- review cards injected by JS -->
+            </div>
+          </div>
+
+          <!-- Right: review submission form -->
+          <aside>
+            <div class="review-form" id="reviewFormWrap">
+              <h3>Write a review</h3>
+              <p class="small-muted">Share your experience</p>
+
+              <div class="form-row">
+                <label for="reviewerName">Name</label>
+                <input id="reviewerName" type="text" placeholder="Your name (e.g. Priya)" />
+              </div>
+
+              <div class="form-row">
+                <label for="reviewCity">City (optional)</label>
+                <input id="reviewCity" type="text" placeholder="City (e.g. Bengaluru)" />
+              </div>
+
+              <div class="form-row">
+                <label>Rating</label>
+                <div class="stars" id="starPicker">
+                  <button type="button" class="star-btn" data-value="1" aria-label="1 star">★</button>
+                  <button type="button" class="star-btn" data-value="2" aria-label="2 stars">★</button>
+                  <button type="button" class="star-btn" data-value="3" aria-label="3 stars">★</button>
+                  <button type="button" class="star-btn" data-value="4" aria-label="4 stars">★</button>
+                  <button type="button" class="star-btn" data-value="5" aria-label="5 stars">★</button>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <label for="reviewText">Review</label>
+                <textarea id="reviewText" placeholder="Tell other users what you liked (or didn't)." ></textarea>
+              </div>
+              <div class="form-actions">
+                <button id="submitReview" class="btn primary">Submit review</button>
+                <button id="clearForm" class="btn ghost" type="button">Clear</button>
+              </div>
+
+              <div id="reviewFeedback" style="margin-top:8px;font-size:13px;color:#d23" aria-live="polite"></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRICING -->
+    <section id="pricing" class="pricing">
+      <div class="container">
+        <h2>Pricing</h2>
+        <p class="muted">Start for free. Pro features coming soon — faster extraction, priority support.</p>
+        <div class="pricing-grid">
+          <div class="price-card">
+            <div class="price-head">Free</div>
+            <div class="price-value">Free</div>
+            <ul>
+              <li>Full local extraction</li>
+              <li>CSV export</li>
+              <li>Community support</li>
+            </ul>
+            <button class="btn primary">Get Started</button>
+          </div>
+
+          <div class="price-card featured">
+            <div class="price-head">Pro (coming)</div>
+            <div class="price-value">Starting soon</div>
+            <ul>
+              <li>Faster extraction</li>
+              <li>Priority support</li>
+              <li>Team seats</li>
+            </ul>
+            <button class="btn ghost">Notify me</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="section">
+      <div class="container">
+        <h2>How LeadHive works </h2>
+        <ol class="steps">
+          <li>Search any category in Google Maps (e.g. "salons in Bengaluru").</li>
+          <li>Open LeadHive and click <strong>Auto-Extract Leads</strong>.</li>
+          <li>LeadHive scrolls the results, collects links and opens each place to read details.</li>
+          <li>Data is saved locally and you download a CSV.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- FAQ & PRIVACY -->
+    <section id="faq" class="section">
+      <div class="container">
+        <h2>Frequently asked questions</h2>
+        <div class="faq-grid">
+          <details>
+            <summary>Why are some phone numbers missing?</summary>
+            <p>Some businesses do not share phone numbers publicly; LeadHive extracts only what is visible on the place page.</p>
+          </details>
+
+          <details>
+            <summary>Does LeadHive upload my data?</summary>
+            <p>No. All processing runs locally in your browser; no extracted data is transmitted to our servers.</p>
+          </details>
+
+          <details>
+            <summary>How do I install before publishing?</summary>
+            <p>Open chrome://extensions → Enable Developer mode → Load unpacked → select the extension folder (containing manifest.json).</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="section gray">
+      <div class="container">
+        <h2>Privacy & Safety</h2>
+        <p class="muted">LeadHive only reads publicly visible data on Google Maps and linked websites. All extraction happens locally in your browser; we do not collect or send data to external servers.</p>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+      <div class="container center">
+        <h2>Get started — extract leads in minutes</h2>
+        <p class="muted">Install LeadHive and convert Google Maps search into a lead list today.</p>
+        <button id="ctaInstall" class="btn primary">Add to Chrome</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container center">
+      <img src="leadhive-logo.png" alt="LeadHive" style="width:150px;height:150px;border-radius:12px;margin-bottom:8px" />
+      <div style="color:var(--muted)">© <span id="year"></span> LeadHive • <a href="mailto:privacy@leadhive.example" style="color:var(--muted)">privacy@leadhive.example</a></div>
+    </div>
+  </footer>
+
+  <!-- DEMO MODAL -->
+  <div id="demoBackdrop" class="demo-modal-backdrop" aria-hidden="true" role="dialog" style="display:none;align-items:center;justify-content:center;">
+    <div class="demo-modal" role="document" style="max-height:90vh;overflow:auto;">
+      <button id="demoClose" class="demo-close" aria-label="Close">✕</button>
+      <h3>LeadHive — Quick demo</h3>
+      <div class="video-wrap" style="position:relative;padding-top:56.25%;margin-top:12px">
+        <iframe id="demoFrame" width="100%" height="100%" style="position:absolute;left:0;top:0;border:0" src="https://www.youtube.com/embed/dQw4w9WgXcQ" allowfullscreen></iframe>
+      </div>
+      <p class="muted small">Replace this demo video with your own screen recording after publish.</p>
+    </div>
+  </div>
+
+  <!-- LIGHTBOX (big viewer) -->
+  <div id="lightboxBackdrop" class="lightbox-backdrop" role="dialog" aria-hidden="true">
+    <div class="lightbox" role="document" aria-live="polite">
+      <button class="lightbox-nav lightbox-prev" id="lbPrev" title="Previous (←)">&larr;</button>
+      <div style="width:100%;display:flex;align-items:center;justify-content:center">
+        <img id="lightboxImage" src="" alt="Large screenshot" />
+      </div>
+      <button class="lightbox-nav lightbox-next" id="lbNext" title="Next (→)">&rarr;</button>
+      <button class="lightbox-close" id="lbClose" aria-label="Close">✕</button>
+      <div class="lightbox-caption" id="lbCaption"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    // dynamic year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // CHROME_STORE_URL placeholder
+    const CHROME_STORE_URL = "";
+
+    function openStoreOrGuide() {
+      if (CHROME_STORE_URL && CHROME_STORE_URL.trim()) {
+        window.open(CHROME_STORE_URL, "_blank");
+      } else {
+        window.open("https://developer.chrome.com/docs/extensions/mv3/getstarted/", "_blank");
+      }
+    }
+    const addBtn = document.getElementById('addBtn');
+    if (addBtn) addBtn.addEventListener('click', openStoreOrGuide);
+    const ctaInstall = document.getElementById('ctaInstall');
+    if (ctaInstall) ctaInstall.addEventListener('click', openStoreOrGuide);
+    const navInstall = document.getElementById('navInstall');
+    if (navInstall) navInstall.addEventListener('click', () => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }));
+
+    // Demo modal
+    const demoBackdrop = document.getElementById('demoBackdrop');
+    const demoClose = document.getElementById('demoClose');
+    const watchDemoBtn = document.getElementById('watchDemo');
+    if (watchDemoBtn) watchDemoBtn.addEventListener('click', () => {
+      demoBackdrop.style.display = 'flex';
+      demoBackdrop.setAttribute('aria-hidden', 'false');
+    });
+    if (demoClose) demoClose.addEventListener('click', () => {
+      demoBackdrop.style.display = 'none';
+      demoBackdrop.setAttribute('aria-hidden', 'true');
+    });
+    if (demoBackdrop) demoBackdrop.addEventListener('click', (e) => { if (e.target === demoBackdrop) demoBackdrop.style.display = 'none'; });
+
+    // ---------- Gallery data ----------
+    const images = [
+      'screenshots/s1.png',
+      'screenshots/s2.png',
+      'screenshots/s3.png',
+      'screenshots/s4.png',
+      'screenshots/s5.png'
+    ];
+
+    // inject thumbnails dynamically so they always match `images`
+    const thumbsContainer = document.getElementById('thumbsContainer');
+    images.forEach((src, idx) => {
+      const d = document.createElement('div');
+      d.className = 'thumb';
+      d.dataset.src = src;
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = `screenshot-${idx+1}`;
+      d.appendChild(img);
+      if (thumbsContainer) thumbsContainer.appendChild(d);
+    });
+
+    // now grab elements
+    const mainImg = document.getElementById('mainScreenshot');
+    const thumbs = Array.from(document.querySelectorAll('.thumb'));
+    const prevBtn = document.getElementById('sliderPrev');
+    const nextBtn = document.getElementById('sliderNext');
+
+    // lightbox elements
+    const lbBackdrop = document.getElementById('lightboxBackdrop');
+    const lbImage = document.getElementById('lightboxImage');
+    const lbPrev = document.getElementById('lbPrev');
+    const lbNext = document.getElementById('lbNext');
+    const lbClose = document.getElementById('lbClose');
+    const lbCaption = document.getElementById('lbCaption');
+
+    let current = 0;
+    let heroAutoplay = null;
+    let lbAutoplay = null;
+    const HERO_AUTOPLAY_MS = 4500;
+    const LB_AUTOPLAY_MS = 3500;
+
+    function setActive(index, { openLightboxView=false } = {}) {
+      current = (index + images.length) % images.length;
+      if (mainImg) mainImg.src = images[current];
+      thumbs.forEach((t, i) => t.classList.toggle('active', i === current));
+      if (thumbs[current] && thumbsContainer) {
+        const offsetLeft = thumbs[current].offsetLeft - (thumbsContainer.clientWidth / 2) + (thumbs[current].clientWidth / 2);
+        thumbsContainer.scrollTo({ left: offsetLeft, behavior: 'smooth' });
+      }
+      if (openLightboxView) openLightbox(current);
+    }
+
+    // wire thumbs (guard in case thumbs are missing)
+    thumbs.forEach((thumb, i) => {
+      thumb.addEventListener('click', () => {
+        setActive(i);
+        resetHeroAutoplay();
+      });
+      // open lightbox if thumbnail image clicked
+      const img = thumb.querySelector('img');
+      if (img) img.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openLightbox(i);
+      });
+    });
+
+    // hero click opens lightbox
+    if (mainImg) mainImg.addEventListener('click', () => openLightbox(current));
+    // arrows are hidden but we keep guards in case you re-enable them later
+    if (prevBtn) prevBtn.addEventListener('click', () => { setActive(current - 1); resetHeroAutoplay(); });
+    if (nextBtn) nextBtn.addEventListener('click', () => { setActive(current + 1); resetHeroAutoplay(); });
+
+    // autoplay
+    function startHeroAutoplay() {
+      stopHeroAutoplay();
+      heroAutoplay = setInterval(() => { setActive(current + 1); }, HERO_AUTOPLAY_MS);
+    }
+    function stopHeroAutoplay(){ if (heroAutoplay) { clearInterval(heroAutoplay); heroAutoplay = null; } }
+    function resetHeroAutoplay(){ stopHeroAutoplay(); startHeroAutoplay(); }
+
+    [document.querySelector('.device-screen'), thumbsContainer].forEach(el => {
+      if (!el) return;
+      el.addEventListener('mouseenter', () => stopHeroAutoplay());
+      el.addEventListener('mouseleave', () => startHeroAutoplay());
+    });
+
+    setActive(0);
+    startHeroAutoplay();
+
+    // ---------- Lightbox (big viewer) ----------
+    function openLightbox(index) {
+      current = (index + images.length) % images.length;
+      if (lbImage) lbImage.src = images[current];
+      if (lbCaption) lbCaption.textContent = `${current + 1} / ${images.length}`;
+      if (lbBackdrop) { lbBackdrop.style.display = 'flex'; lbBackdrop.setAttribute('aria-hidden', 'false'); }
+      stopHeroAutoplay();
+      startLbAutoplay();
+      thumbs.forEach((t, i) => t.classList.toggle('active', i === current));
+      if (thumbs[current] && thumbsContainer) {
+        const offsetLeft = thumbs[current].offsetLeft - (thumbsContainer.clientWidth / 2) + (thumbs[current].clientWidth / 2);
+        thumbsContainer.scrollTo({ left: offsetLeft, behavior: 'smooth' });
+      }
+    }
+
+    function closeLightbox() {
+      if (lbBackdrop) { lbBackdrop.style.display = 'none'; lbBackdrop.setAttribute('aria-hidden', 'true'); }
+      if (lbImage) lbImage.src = '';
+      stopLbAutoplay();
+      startHeroAutoplay();
+    }
+
+    function lbPrevImg() {
+      current = (current - 1 + images.length) % images.length;
+      if (lbImage) lbImage.src = images[current];
+      if (lbCaption) lbCaption.textContent = `${current + 1} / ${images.length}`;
+      thumbs.forEach((t, i) => t.classList.toggle('active', i === current));
+      if (thumbs[current] && thumbsContainer) {
+        const offsetLeft = thumbs[current].offsetLeft - (thumbsContainer.clientWidth / 2) + (thumbs[current].clientWidth / 2);
+        thumbsContainer.scrollTo({ left: offsetLeft, behavior: 'smooth' });
+      }
+    }
+    function lbNextImg() {
+      current = (current + 1) % images.length;
+      if (lbImage) lbImage.src = images[current];
+      if (lbCaption) lbCaption.textContent = `${current + 1} / ${images.length}`;
+      thumbs.forEach((t, i) => t.classList.toggle('active', i === current));
+      if (thumbs[current] && thumbsContainer) {
+        const offsetLeft = thumbs[current].offsetLeft - (thumbsContainer.clientWidth / 2) + (thumbs[current].clientWidth / 2);
+        thumbsContainer.scrollTo({ left: offsetLeft, behavior: 'smooth' });
+      }
+    }
+
+    if (lbPrev) lbPrev.addEventListener('click', () => { lbPrevImg(); resetLbAutoplay(); });
+    if (lbNext) lbNext.addEventListener('click', () => { lbNextImg(); resetLbAutoplay(); });
+    if (lbClose) lbClose.addEventListener('click', closeLightbox);
+
+    if (lbBackdrop) lbBackdrop.addEventListener('click', (e) => {
+      if (e.target === lbBackdrop) closeLightbox();
+    });
+
+    document.addEventListener('keydown', (ev) => {
+      if (lbBackdrop && lbBackdrop.style.display === 'flex') {
+        if (ev.key === 'ArrowLeft') { lbPrevImg(); resetLbAutoplay(); }
+        if (ev.key === 'ArrowRight') { lbNextImg(); resetLbAutoplay(); }
+        if (ev.key === 'Escape') closeLightbox();
+      }
+    });
+
+    function startLbAutoplay(){
+      stopLbAutoplay();
+      lbAutoplay = setInterval(() => { lbNextImg(); }, LB_AUTOPLAY_MS);
+    }
+    function stopLbAutoplay(){ if (lbAutoplay) { clearInterval(lbAutoplay); lbAutoplay = null; } }
+    function resetLbAutoplay(){ stopLbAutoplay(); startLbAutoplay(); }
+
+    const lightboxEl = document.querySelector('.lightbox');
+    if (lightboxEl) {
+      lightboxEl.addEventListener('mouseenter', () => stopLbAutoplay());
+      lightboxEl.addEventListener('mouseleave', () => startLbAutoplay());
+    }
+
+    // ---------- Reviews: timestamp storage in localStorage ----------
+    const REVIEWS_KEY = 'leadhive_reviews_v2';
+
+    function loadReviews() {
+      try {
+        const raw = localStorage.getItem(REVIEWS_KEY);
+        if (!raw) return [];
+        return JSON.parse(raw) || [];
+      } catch (e) {
+        console.error('Failed to load reviews', e);
+        return [];
+      }
+    }
+
+    function saveReviews(list) {
+      try {
+        localStorage.setItem(REVIEWS_KEY, JSON.stringify(list));
+      } catch (e) {
+        console.error('Failed to save reviews', e);
+      }
+    }
+
+    function timeAgo(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const diff = Date.now() - d.getTime();
+      const s = Math.floor(diff / 1000);
+      if (s < 10) return 'Just now';
+      if (s < 60) return s + ' sec' + (s > 1 ? 's' : '') + ' ago';
+      const m = Math.floor(s / 60);
+      if (m < 60) return m + ' min' + (m > 1 ? 's' : '') + ' ago';
+      const h = Math.floor(m / 60);
+      if (h < 24) return h + ' hr' + (h > 1 ? 's' : '') + ' ago';
+      const days = Math.floor(h / 24);
+      if (days < 7) return days + ' day' + (days > 1 ? 's' : '') + ' ago';
+      return d.toLocaleDateString();
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return '';
+      return String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+    }
+
+    function renderReviews() {
+      const grid = document.getElementById('reviewsGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      const reviews = loadReviews();
+      if (!reviews.length) {
+        grid.innerHTML = '<div class="small-muted">No reviews yet. Be the first to write one!</div>';
+        return;
+      }
+
+      reviews.slice().reverse().forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'review-card';
+
+        const stars = '★'.repeat(Math.max(0, Math.min(5, Math.round(r.rating || 0))));
+        const titleHtml = r.title ? `<div class="review-title">${escapeHtml(r.title)}</div>` : '';
+        const cityPart = r.city ? `• ${escapeHtml(r.city)}` : '';
+        const timePart = r.created_at ? timeAgo(r.created_at) : '';
+        const verifiedHtml = r.verified ? `<span class="verified-badge" title="Verified review">✔ Verified</span>` : '';
+
+        card.innerHTML = `
+          <div class="review-stars">${stars}</div>
+          ${titleHtml}
+          <div class="review-text">${escapeHtml(r.text || '')}</div>
+          <div class="review-meta">
+            — ${escapeHtml(r.name || 'Anonymous')} ${cityPart} ${timePart ? '· ' + escapeHtml(timePart) : ''}
+            <span style="margin-left:8px">${verifiedHtml}</span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // initial render
+    renderReviews();
+
+    // Review form wiring (robust to missing optional elements)
+    const starButtons = Array.from(document.querySelectorAll('.star-btn') || []);
+    let selectedRating = 0;
+    const titleInput = document.getElementById('reviewTitle'); // optional (may be null)
+    const nameInput = document.getElementById('reviewerName');
+    const cityInput = document.getElementById('reviewCity');
+    const textInput = document.getElementById('reviewText');
+    const verifiedInput = document.getElementById('reviewVerified'); // optional (may be null)
+    const submitBtn = document.getElementById('submitReview');
+    const clearBtn = document.getElementById('clearForm');
+    const feedback = document.getElementById('reviewFeedback');
+
+    function updateStarUI() {
+      starButtons.forEach(b => {
+        const v = parseInt(b.dataset.value, 10) || 0;
+        b.classList.toggle('active', v <= selectedRating);
+      });
+    }
+
+    // star click handlers (if stars exist)
+    starButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedRating = parseInt(btn.dataset.value, 10) || 0;
+        updateStarUI();
+      });
+      // keyboard accessibility
+      btn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          btn.click();
+        }
+      });
+    });
+
+    // Clear button
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        selectedRating = 0;
+        updateStarUI();
+        if (titleInput) titleInput.value = '';
+        if (nameInput) nameInput.value = '';
+        if (cityInput) cityInput.value = '';
+        if (textInput) textInput.value = '';
+        if (verifiedInput) verifiedInput.checked = false;
+        if (feedback) feedback.textContent = '';
+      });
+    }
+
+    // Submit handler
+    if (submitBtn) {
+      submitBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        if (feedback) { feedback.style.color = '#d23'; feedback.textContent = ''; }
+
+        const title = titleInput ? (titleInput.value || '').trim() : '';
+        const name = nameInput ? (nameInput.value || '').trim() : '';
+        const city = cityInput ? (cityInput.value || '').trim() : '';
+        const text = textInput ? (textInput.value || '').trim() : '';
+        const rating = selectedRating;
+        const verified = verifiedInput ? !!verifiedInput.checked : false;
+
+        if (!name) { if (feedback) feedback.textContent = 'Please enter your name.'; return; }
+        if (!rating || rating < 1) { if (feedback) feedback.textContent = 'Please select a star rating.'; return; }
+        if (!text || text.length < 8) { if (feedback) feedback.textContent = 'Please write a bit more (at least 8 characters).'; return; }
+
+        const review = {
+          id: 'r_' + Date.now(),
+          title: title || '',
+          name,
+          city: city || '',
+          text,
+          rating,
+          verified,
+          created_at: new Date().toISOString()
+        };
+
+        const all = loadReviews();
+        all.push(review);
+        saveReviews(all);
+
+        if (feedback) {
+          feedback.style.color = '#0a7a2a';
+          feedback.textContent = 'Thanks! Your review was added.';
+        }
+        renderReviews();
+
+        // reset form
+        selectedRating = 0;
+        updateStarUI();
+        if (titleInput) titleInput.value = '';
+        if (nameInput) nameInput.value = '';
+        if (cityInput) cityInput.value = '';
+        if (textInput) textInput.value = '';
+        if (verifiedInput) verifiedInput.checked = false;
+
+        setTimeout(() => { if (feedback) feedback.textContent = ''; }, 3500);
+      });
+    }
+
+    // nav smooth scroll
+    document.querySelectorAll('.nav-link').forEach(a => {
+      a.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        const href = a.getAttribute('href');
+        const el = document.querySelector(href);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+  </script>
+  <!-- ================= REAL AI CHATBOT (FLASK BACKEND) ================= -->
+
+<style>
+  #ai-chat-btn{
+    position:fixed;
+    bottom:24px;
+    right:24px;
+    width:58px;
+    height:58px;
+    border-radius:50%;
+    background:linear-gradient(180deg,#0A4C9A,#0D6ECF);
+    color:#fff;
+    font-size:26px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    box-shadow:0 12px 30px rgba(0,0,0,.25);
+    z-index:99999;
+  }
+
+  #ai-chatbox{
+    position:fixed;
+    bottom:96px;
+    right:24px;
+    width:340px;
+    max-height:520px;
+    background:#fff;
+    border-radius:16px;
+    box-shadow:0 22px 60px rgba(0,0,0,.28);
+    display:none;
+    flex-direction:column;
+    overflow:hidden;
+    z-index:99999;
+    font-family:Inter,system-ui,Arial;
+  }
+
+  .ai-header{
+    background:linear-gradient(180deg,#0A4C9A,#0D6ECF);
+    color:#fff;
+    padding:14px 16px;
+    font-weight:800;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+
+  .ai-messages{
+    padding:14px;
+    flex:1;
+    overflow-y:auto;
+    background:#f8fafc;
+  }
+
+  .ai-msg{
+    margin-bottom:10px;
+    padding:10px 12px;
+    border-radius:12px;
+    font-size:14px;
+    line-height:1.5;
+    max-width:85%;
+  }
+
+  .ai-bot{background:#e6efff;color:#0A2E5C;}
+  .ai-user{background:#0D6ECF;color:#fff;margin-left:auto;}
+
+  .ai-input{
+    display:flex;
+    border-top:1px solid #e5e7eb;
+  }
+
+  .ai-input input{
+    flex:1;
+    padding:12px;
+    border:none;
+    outline:none;
+    font-size:14px;
+  }
+
+  .ai-input button{
+    background:#F28C28;
+    border:none;
+    color:#fff;
+    padding:0 18px;
+    font-weight:800;
+    cursor:pointer;
+  }
+</style>
+
+<div id="ai-chat-btn">🤖</div>
+
+<div id="ai-chatbox">
+  <div class="ai-header">
+    LeadHive AI
+    <span style="cursor:pointer" onclick="toggleAI()">✕</span>
+  </div>
+  <div class="ai-messages" id="aiMessages">
+    <div class="ai-msg ai-bot">
+      👋 Hi! I’m LeadHive AI. Ask me anything about LeadHive.
+    </div>
+  </div>
+  <div class="ai-input">
+    <input id="aiInput" placeholder="Type your question..." />
+    <button onclick="sendAI()">Send</button>
+  </div>
+</div>
+
+<script>
+  const chatBtn = document.getElementById("ai-chat-btn");
+  const chatBox = document.getElementById("ai-chatbox");
+  const messages = document.getElementById("aiMessages");
+  const input = document.getElementById("aiInput");
+
+  chatBtn.onclick = toggleAI;
+
+  function toggleAI(){
+    chatBox.style.display = chatBox.style.display === "flex" ? "none" : "flex";
+  }
+
+  function addMsg(text, cls){
+    const d = document.createElement("div");
+    d.className = "ai-msg " + cls;
+    d.innerText = text;
+    messages.appendChild(d);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function sendAI(){
+    const q = input.value.trim();
+    if(!q) return;
+
+    addMsg(q,"ai-user");
+    input.value="";
+
+    fetch("http://localhost:5000/chat",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ message:q })
+    })
+    .then(r=>r.json())
+    .then(d=>{
+      addMsg(d.reply || "No response","ai-bot");
+    })
+    .catch(()=>{
+      addMsg("⚠️ AI server is not running","ai-bot");
+    });
+  }
+
+  input.addEventListener("keydown",e=>{
+    if(e.key==="Enter") sendAI();
+  });
+</script>
+
+<!-- ================= END REAL AI CHATBOT ================= -->
+
+<!-- ===== CHATBOT UI POLISH ===== -->
+<style>
+  #ai-chatbox{
+    animation: slideUp .25s ease;
+  }
+
+  @keyframes slideUp{
+    from{transform:translateY(20px);opacity:0}
+    to{transform:translateY(0);opacity:1}
+  }
+
+  .typing{
+    display:flex;
+    gap:4px;
+    align-items:center;
+  }
+  .typing span{
+    width:6px;
+    height:6px;
+    background:#0D6ECF;
+    border-radius:50%;
+    animation: blink 1.4s infinite both;
+  }
+  .typing span:nth-child(2){animation-delay:.2s}
+  .typing span:nth-child(3){animation-delay:.4s}
+
+  @keyframes blink{
+    0%{opacity:.2}
+    20%{opacity:1}
+    100%{opacity:.2}
+  }
+</style>
+<script>
+  function detectLang(text){
+    if(/[\u0C00-\u0C7F]/.test(text)) return "telugu";
+    if(/[\u0900-\u097F]/.test(text)) return "hindi";
+    return "english";
+  }
+
+  // override sendAI safely
+  function sendAI(){
+    const q = input.value.trim();
+    if(!q) return;
+
+    addMsg(q,"ai-user");
+    input.value="";
+
+    // typing indicator
+    const typing = document.createElement("div");
+    typing.className = "ai-msg ai-bot";
+    typing.innerHTML = `<div class="typing">
+      <span></span><span></span><span></span>
+    </div>`;
+    messages.appendChild(typing);
+    messages.scrollTop = messages.scrollHeight;
+
+    fetch("http://localhost:5000/chat",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        message:q,
+        language: detectLang(q)
+      })
+    })
+    .then(r=>r.json())
+    .then(d=>{
+      typing.remove();
+      addMsg(d.reply || "No response","ai-bot");
+    })
+    .catch(()=>{
+      typing.remove();
+      addMsg("⚠️ AI server not reachable","ai-bot");
+    });
+  }
+</script>
+
+</body>
+</html>
