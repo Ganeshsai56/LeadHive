@@ -10,6 +10,14 @@ client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
+# ✅ ADDED ROOT ROUTE (THIS FIXES 404)
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({
+        "status": "ok",
+        "message": "LeadHive backend is running 🚀"
+    })
+
 @app.route("/chat", methods=["POST"])
 def chat():
     data = request.json
@@ -42,3 +50,4 @@ def chat():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
